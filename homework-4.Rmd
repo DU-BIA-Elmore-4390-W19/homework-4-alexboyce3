@@ -1,7 +1,7 @@
 ---
 title: 'Homework 4: Bags, Forests, Boosts, oh my'
 author: "Alex Boyce"
-date: "3/9/2019"
+date: "3/6/2019"
 output: github_document
 ---
 
@@ -45,7 +45,7 @@ results <- tibble(trees = rep(seq(25,500,by=25), each=7),
                   RMSE = rep(NA, length(trees)))
 
 set.seed(1)
-for (i in seq(25, 50, by=25)){
+for (i in seq(25, 500, by=25)){
   rf_results <- train(medv ~ ., 
                       data = training,
                       method = "rf",
@@ -68,7 +68,9 @@ Problem 8 from Chapter 8 in the text. Set your seed with 9823 and split into
 train/test using 50\% of your data in each split. In addition to 
 parts (a) - (e), do the following:
 
-Part a - splitting the data
+## Answer 2
+
+#### Part a - splitting the data
 ```{r}
 df <- tbl_df(Carseats)
 
@@ -79,7 +81,7 @@ testing  <- df[-inTraining, ]
 ```
 
 
-Part b - regression tree
+#### Part b - regression tree
 ```{r}
 tree_carseats <- rpart(Sales ~ . , training)
 prp(tree_carseats)
@@ -89,7 +91,7 @@ mean((test_pred - testing$Sales)^2)
 ```
 
 
-Part c - Tree cross-validation for tree depth
+#### Part c - Tree cross-validation for tree depth
 ```{r}
 set.seed(9823)
 fit_control <- trainControl(method = "repeatedcv", number = 10, repeats = 10)
@@ -98,17 +100,20 @@ cv_carseats_tree <- train(Sales ~ ., training,
                           trControl = fit_control, 
                           tuneGrid = data.frame(maxdepth = 1:10))
 plot(cv_carseats_tree)
-cv_carseats_tree
+```
 
+Maxdepth of 3 gives the lowest RMSE - will re-fit using that
+```{r}
 set.seed(9823)
-cv_carseats_tree3 <- train(Sales ~ ., training, method = "rpart2", maxdepth = 3)
+cv_carseats_tree3 <- rpart(Sales ~ ., training, maxdepth = 3)
+prp(cv_carseats_tree3)
 
 test_pred <- predict(cv_carseats_tree3, newdata = testing)
 mean((test_pred - testing$Sales)^2)
 ```
 
 
-Part d - Bagging
+#### Part d - Bagging
 ```{r}
 set.seed(9823)
 carseats_bag <- randomForest(Sales ~ ., data = training, 
@@ -118,10 +123,13 @@ carseats_bag <- randomForest(Sales ~ ., data = training,
 
 test_pred <- predict(carseats_bag, newdata = testing)
 mean((test_pred - testing$Sales)^2)
+```
 
+Plotting variable importance
+```{r}
 imp <- varImp(carseats_bag)
 rn <- row.names(imp)
-imp_df <- data_frame(variable = rn, importance = imp$Overall) %>%
+imp_df <- tibble(variable = rn, importance = imp$Overall) %>%
   arrange(desc(-importance)) %>%
   mutate(variable = factor(variable, variable))
 
@@ -129,9 +137,10 @@ p <- ggplot(data = imp_df, aes(variable, importance))
 p + geom_col(fill = "#6e0000") +
   coord_flip()
 ```
+Shelf location and price are the two most important variables here
 
 
-Part e - Random Forest
+#### Part e - Random Forest
 ```{r}
 set.seed(9823)
 carseats_rf <- train(Sales ~ ., data = training,
@@ -143,16 +152,21 @@ p + geom_point() +
   geom_line()
 ```
 
+mtry of 5-8 results in similiar RMSE - will use 5 for simplicity
+
 ```{r}
 set.seed(9823)
-carseats_rf5 <- randomForest(Sales ~ ., data = training, mtry = 5)
+carseats_rf5 <- randomForest(Sales ~ ., data = training, mtry = 5, importance = TRUE)
 
 test_pred <- predict(carseats_rf5, newdata = testing)
 mean((test_pred - testing$Sales)^2)
+```
 
-imp <- varImp(carseats_rf)$importance
+Variable Importance
+```{r}
+imp <- varImp(carseats_rf5)
 rn <- row.names(imp)
-imp_df <- data_frame(variable = rn, importance = imp$Overall) %>%
+imp_df <- tibble(variable = rn, importance = imp$Overall) %>%
   arrange(desc(-importance)) %>%
   mutate(variable = factor(variable, variable))
 
@@ -160,10 +174,10 @@ p <- ggplot(data = imp_df, aes(variable, importance))
 p + geom_col(fill = "#6e0000") +
   coord_flip()
 ```
+Again, shelf location and price are most important
 
 
-1. Fit a gradient-boosted tree to the training data and report the estimated 
-test MSE. 
+#### 1. Fit a gradient-boosted tree to the training data and report the estimated test MSE. 
 ```{r}
 set.seed(9823)
 grid <- expand.grid(interaction.depth = c(1, 3), 
@@ -185,8 +199,7 @@ mean((test_pred - testing$Sales)^2)
 ```
 
 
-2. Fit a multiple regression model to the training data and report the 
-estimated test MSE
+#### 2. Fit a multiple regression model to the training data and report the estimated test MSE
 ```{r}
 carseats_lm <- lm(Sales ~ .,data = training)
 test_pred <- predict(carseats_lm, newdata = testing)
@@ -194,6 +207,5 @@ mean((test_pred - testing$Sales)^2)
 ```
 
 
-3. Summarize your results. 
-
+#### 3. Summarize your results. 
 Tree error MSE steadily improved throughout the problem, with the original tree & cross-validation of depth around 4.5-5. Bagging and random forest dropped MSE to around 3, then boosting further dropped to 1.8. However, a simple multiple regression with all variables was still best at 1.01 and is probably the easiest to explain.
