@@ -21,7 +21,8 @@ testing  <- df[-inTraining, ]
 set.seed(1)
 results <- tibble(trees = rep(seq(25,500,by=25), each=7),
                   mtry = rep(3:9, each=1,times=20),
-                  RMSE = rep(NA, length(trees)))
+                  MSE = rep(NA, length(trees)))
+
 
 set.seed(1)
 for (i in seq(25, 500, by=25)){
@@ -32,17 +33,42 @@ for (i in seq(25, 500, by=25)){
                       importance = T,
                       tuneGrid = data.frame(mtry = seq(3,9,by=1)))
   for (j in seq(1,7)){
-    results[j + (i/25 - 1)*7,'RMSE'] = rf_results$results$RMSE[j]
+    results[which(results$trees==i & results$mtry==j+2),'MSE'] = (rf_results$results$RMSE[j])^2
     }
 }
 
-p <- ggplot(data = results, aes(x = trees, y = RMSE, group=mtry, col=as.factor(mtry)))
+p <- ggplot(data = results, aes(x = trees, y = MSE, group=mtry, col=as.factor(mtry)))
 p + geom_line() + labs(color = 'mtry')
 ```
 
 ![](homework-4_files/figure-markdown_github/unnamed-chunk-1-1.png)
 
 RMSE fluctuates inconsistently based on the number of trees - 50 looks like a good compromise between time to run and low error. In terms of mtry, RMSE improvement appears to stop at around 5 so that seems like a good option.
+
+#### Answer 1 w/o cross-validation
+
+``` r
+#without cross validation
+set.seed(1)
+results <- tibble(trees = rep(seq(25,500,by=25), each=7),
+                  mtry = rep(3:9, each=1,times=20),
+                  MSE = rep(NA, length(trees)))
+
+set.seed(1)
+for (i in seq(25, 500,by=25)){
+  for (k in seq(3, 9, by=1)){
+    rf_results <- randomForest(medv ~ ., data = training, ntree = i, mtry=k)
+    test_pred <- predict(rf_results, newdata = testing)
+    error <- (mean((test_pred - testing$medv)^2))
+    results[which(results$trees==i & results$mtry==k),'MSE'] = error
+  }
+}
+
+p <- ggplot(data = results, aes(x = trees, y = MSE, group=mtry, col=as.factor(mtry)))
+p + geom_line() + labs(color = 'mtry')
+```
+
+![](homework-4_files/figure-markdown_github/unnamed-chunk-2-1.png)
 
 Problem 2
 ---------
@@ -70,7 +96,7 @@ tree_carseats <- rpart(Sales ~ . , training)
 prp(tree_carseats)
 ```
 
-![](homework-4_files/figure-markdown_github/unnamed-chunk-3-1.png)
+![](homework-4_files/figure-markdown_github/unnamed-chunk-4-1.png)
 
 ``` r
 test_pred <- predict(tree_carseats, newdata = testing)
@@ -97,7 +123,7 @@ cv_carseats_tree <- train(Sales ~ ., training,
 plot(cv_carseats_tree)
 ```
 
-![](homework-4_files/figure-markdown_github/unnamed-chunk-4-1.png)
+![](homework-4_files/figure-markdown_github/unnamed-chunk-5-1.png)
 
 Maxdepth of 3 gives the lowest RMSE - will re-fit using that
 
@@ -107,7 +133,7 @@ cv_carseats_tree3 <- rpart(Sales ~ ., training, maxdepth = 3)
 prp(cv_carseats_tree3)
 ```
 
-![](homework-4_files/figure-markdown_github/unnamed-chunk-5-1.png)
+![](homework-4_files/figure-markdown_github/unnamed-chunk-6-1.png)
 
 ``` r
 test_pred <- predict(cv_carseats_tree3, newdata = testing)
@@ -145,7 +171,7 @@ p + geom_col(fill = "#6e0000") +
   coord_flip()
 ```
 
-![](homework-4_files/figure-markdown_github/unnamed-chunk-7-1.png) Shelf location and price are the two most important variables here
+![](homework-4_files/figure-markdown_github/unnamed-chunk-8-1.png) Shelf location and price are the two most important variables here
 
 #### Part e - Random Forest
 
@@ -160,7 +186,7 @@ p + geom_point() +
   geom_line()
 ```
 
-![](homework-4_files/figure-markdown_github/unnamed-chunk-8-1.png)
+![](homework-4_files/figure-markdown_github/unnamed-chunk-9-1.png)
 
 mtry of 5-8 results in similiar RMSE - will use 5 for simplicity
 
@@ -188,7 +214,7 @@ p + geom_col(fill = "#6e0000") +
   coord_flip()
 ```
 
-![](homework-4_files/figure-markdown_github/unnamed-chunk-10-1.png) Again, shelf location and price are most important
+![](homework-4_files/figure-markdown_github/unnamed-chunk-11-1.png) Again, shelf location and price are most important
 
 #### 1. Fit a gradient-boosted tree to the training data and report the estimated test MSE.
 

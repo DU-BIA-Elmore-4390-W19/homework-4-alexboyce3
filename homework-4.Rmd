@@ -42,7 +42,8 @@ testing  <- df[-inTraining, ]
 set.seed(1)
 results <- tibble(trees = rep(seq(25,500,by=25), each=7),
                   mtry = rep(3:9, each=1,times=20),
-                  RMSE = rep(NA, length(trees)))
+                  MSE = rep(NA, length(trees)))
+
 
 set.seed(1)
 for (i in seq(25, 500, by=25)){
@@ -53,15 +54,38 @@ for (i in seq(25, 500, by=25)){
                       importance = T,
                       tuneGrid = data.frame(mtry = seq(3,9,by=1)))
   for (j in seq(1,7)){
-    results[j + (i/25 - 1)*7,'RMSE'] = rf_results$results$RMSE[j]
+    results[which(results$trees==i & results$mtry==j+2),'MSE'] = (rf_results$results$RMSE[j])^2
     }
 }
 
-p <- ggplot(data = results, aes(x = trees, y = RMSE, group=mtry, col=as.factor(mtry)))
+p <- ggplot(data = results, aes(x = trees, y = MSE, group=mtry, col=as.factor(mtry)))
 p + geom_line() + labs(color = 'mtry')
 ```
 
 RMSE fluctuates inconsistently based on the number of trees - 50 looks like a good compromise between time to run and low error. In terms of mtry, RMSE improvement appears to stop at around 5 so that seems like a good option.
+
+####Answer 1 w/o cross-validation
+```{r}
+#without cross validation
+set.seed(1)
+results <- tibble(trees = rep(seq(25,500,by=25), each=7),
+                  mtry = rep(3:9, each=1,times=20),
+                  MSE = rep(NA, length(trees)))
+
+set.seed(1)
+for (i in seq(25, 500,by=25)){
+  for (k in seq(3, 9, by=1)){
+    rf_results <- randomForest(medv ~ ., data = training, ntree = i, mtry=k)
+    test_pred <- predict(rf_results, newdata = testing)
+    error <- (mean((test_pred - testing$medv)^2))
+    results[which(results$trees==i & results$mtry==k),'MSE'] = error
+  }
+}
+
+p <- ggplot(data = results, aes(x = trees, y = MSE, group=mtry, col=as.factor(mtry)))
+p + geom_line() + labs(color = 'mtry')
+```
+
 
 ## Problem 2
 Problem 8 from Chapter 8 in the text. Set your seed with 9823 and split into 
